@@ -27,7 +27,10 @@ node['gluster']['server']['volumes'].each do |volume_name, volume_values|
   end
 
   replica_count = volume_values['replica_count']
+  puts 'LALALALALALALA'
+  puts node['gluster']['server']['bricks_waiting_to_join']
   next if node['gluster']['server']['bricks_waiting_to_join'].empty?
+  puts "SHIT IS NOT ROLING"
   # The number of bricks in bricks_waiting_to_join has to be a modulus of the replica_count we are using for our gluster volume
   if (brick_count % replica_count) == 0
     Chef::Log.info("Attempting to add new bricks into volume #{volume_name}")
