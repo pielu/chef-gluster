@@ -1,4 +1,6 @@
 # gluster cookbook CHANGELOG
+## v4.0.3 (2015-12-17)
+- master gluster to wait for others to finish
 
 ## v4.0.2 (2015-10-21)
 - **[PR #39](https://github.com/shortdudey123/chef-gluster/pull/39)** - Fix the client package name for rhel
