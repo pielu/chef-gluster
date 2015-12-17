@@ -110,12 +110,22 @@ node['gluster']['server']['volumes'].each do |volume_name, volume_values|
       peers.each do |peer|
         if peer == node['hostname'] || peer == node['fqdn']
           chef_node = node
+          unless chef_node['fqdn']
+            puts "Node :: #{chef_node} has FQDN :: #{chef_node['fqdn']}, sleeping for 10"
+            sleep 10
+            redo
+          end
         else
           begin
             chef_node = Chef::Node.load(peer)
+            unless chef_node['fqdn']
+              puts "Node :: #{chef_node} has FQDN :: #{chef_node['fqdn']}, sleeping for 10"
+              sleep 10
+              redo
+            end
           rescue Net::HTTPServerException
             Chef::Log.warn("Unable to find a chef node for #{peer}")
-            next
+            redo
           end
         end
         chef_fqdn = chef_node['fqdn'] || chef_node['hostname']
@@ -123,7 +133,7 @@ node['gluster']['server']['volumes'].each do |volume_name, volume_values|
           peer_bricks = chef_node['gluster']['server']['bricks'].select { |brick| brick.include? volume_name }
           volume_bricks[chef_fqdn] = peer_bricks
           brick_count += (peer_bricks.count || 0)
-        end rescue NoMethodError
+        end
       end
 
       # Create option string
