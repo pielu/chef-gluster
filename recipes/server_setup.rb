@@ -80,6 +80,8 @@ node['gluster']['server']['volumes'].each do |volume_name, volume_values|
     # Save the array of bricks to the node's attributes
     node.set['gluster']['server']['bricks'] = bricks
   end
+  # Save the node's attributes to the server so that the first peer can proceed asap and wait for the peering
+  node.save
 
   # Only continue if the node is the first peer in the array
   if volume_values['peers'].first == node['fqdn'] || volume_values['peers'].first == node['hostname']
