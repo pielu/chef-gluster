@@ -112,16 +112,16 @@ node['gluster']['server']['volumes'].each do |volume_name, volume_values|
       peers.each do |peer|
         if peer == node['hostname'] || peer == node['fqdn']
           chef_node = node
-          unless chef_node['fqdn']
-            puts "Node :: #{chef_node} has FQDN :: #{chef_node['fqdn']}, sleeping for 10"
+          unless chef_node.attribute?('gluster')
+            puts "Waiting for gluster server attributes to be populated on #{chef_node}, sleeping for 10"
             sleep 10
             redo
           end
         else
           begin
             chef_node = Chef::Node.load(peer)
-            unless chef_node['fqdn']
-              puts "Node :: #{chef_node} has FQDN :: #{chef_node['fqdn']}, sleeping for 10"
+            unless chef_node.attribute?('gluster')
+              puts "Waiting for gluster server attributes to be populated on #{chef_node}, sleeping for 10"
               sleep 10
               redo
             end
