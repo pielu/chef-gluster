@@ -24,13 +24,13 @@ if node['gluster']['server'].attribute?('disks')
     # If a partition doesn't exist, create it
     if `fdisk -l 2> /dev/null | grep '/dev/#{d}1'`.empty?
       # Pass commands to fdisk to create a new partition
-      bash 'create partition' do
+      bash "create partition #{d}" do
         code "(echo n; echo p; echo 1; echo; echo; echo w) | fdisk /dev/#{d}"
         action :run
       end
 
       # Format the new partition
-      execute 'format partition' do
+      execute "format partition #{d}" do
         command "mkfs.xfs -i size=512 /dev/#{d}1"
         action :run
       end
@@ -88,15 +88,17 @@ node['gluster']['server']['volumes'].each do |volume_name, volume_values|
     # Configure the trusted pool if needed
     volume_values['peers'].each do |peer|
       next if peer == node['fqdn'] || peer == node['hostname']
-      execute "gluster peer probe #{peer}" do
+      execute "gluster peer probe #{peer} for #{volume_name}" do
         action :run
+        command "gluster peer probe #{peer}"
         not_if "egrep '^hostname.+=#{peer}$' /var/lib/glusterd/peers/*"
         retries node['gluster']['server']['peer_retries']
         retry_delay node['gluster']['server']['peer_retry_delay']
       end
       # Wait here until the peer reaches connected status (needed for volume create later)
-      execute "gluster peer status | grep -A 2 #{peer} | tail -1 | grep 'Peer in Cluster (Connected)'" do
+      execute "gluster peer status #{peer} for #{volume_name}" do
         action :run
+        command "gluster peer status | grep -A 2 #{peer} | tail -1 | grep 'Peer in Cluster (Connected)'"
         not_if "egrep '^hostname.+=#{peer}$' /var/lib/glusterd/peers/*"
         retries node['gluster']['server']['peer_wait_retries']
         retry_delay node['gluster']['server']['peer_wait_retry_delay']
