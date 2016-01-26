@@ -80,28 +80,33 @@ node['gluster']['server']['volumes'].each do |volume_name, volume_values|
     # Save the array of bricks to the node's attributes
     node.set['gluster']['server']['bricks'] = bricks
   end
-  # Save the node's attributes to the server so that the first peer can proceed asap and wait for the peering
-  node.save
 
   # Only continue if the node is the first peer in the array
   if volume_values['peers'].first == node['fqdn'] || volume_values['peers'].first == node['hostname']
     # Configure the trusted pool if needed
     volume_values['peers'].each do |peer|
       next if peer == node['fqdn'] || peer == node['hostname']
-      execute "gluster peer probe #{peer} for #{volume_name}" do
+      execute "gluster peer probe for #{volume_name} and #{peer}" do
         action :run
         command "gluster peer probe #{peer}"
         not_if "egrep '^hostname.+=#{peer}$' /var/lib/glusterd/peers/*"
         retries node['gluster']['server']['peer_retries']
         retry_delay node['gluster']['server']['peer_retry_delay']
+        notifies :run, "execute[gluster peer status for #{volume_name} and #{peer}]", :immediately
+        notifies :run, "execute[wait delay after peer for #{volume_name} and #{peer}]", :immediately
       end
       # Wait here until the peer reaches connected status (needed for volume create later)
-      execute "gluster peer status #{peer} for #{volume_name}" do
-        action :run
+      execute "gluster peer status for #{volume_name} and #{peer}" do
+        action :nothing
         command "gluster peer status | grep -A 2 #{peer} | tail -1 | grep 'Peer in Cluster (Connected)'"
         not_if "egrep '^hostname.+=#{peer}$' /var/lib/glusterd/peers/*"
         retries node['gluster']['server']['peer_wait_retries']
         retry_delay node['gluster']['server']['peer_wait_retry_delay']
+        notifies :run, "execute[wait delay after peer for #{volume_name} and #{peer}]", :immediately
+      end
+      execute "wait delay after peer for #{volume_name} and #{peer}" do
+        action :nothing
+        command 'sleep 2s'
       end
     end
 
@@ -112,23 +117,19 @@ node['gluster']['server']['volumes'].each do |volume_name, volume_values|
       brick_count = 0
       peers = volume_values.attribute?('peer_names') ? volume_values['peer_names'] : volume_values['peers']
       peers.each do |peer|
-        if peer == node['hostname'] || peer == node['fqdn']
+        if peer == node['fqdn'] || peer == node['hostname']
           chef_node = node
-          unless chef_node.attribute?('gluster')
-            puts "Waiting for gluster server attributes to be populated on #{chef_node}, sleeping for 10"
-            sleep 10
-            redo
-          end
         else
           begin
             chef_node = Chef::Node.load(peer)
-            unless chef_node.attribute?('gluster')
-              puts "Waiting for gluster server attributes to be populated on #{chef_node}, sleeping for 10"
+            unless chef_node['fqdn']
+              Chef::Log.warn("Waiting for #{peer} to finish Chef run and populate attributes, sleeping for 10")
               sleep 10
               redo
             end
           rescue Net::HTTPServerException
-            Chef::Log.warn("Unable to find a chef node for #{peer}")
+            Chef::Log.warn("Unable to find a chef node for #{peer}, will try again")
+            sleep 10
             redo
           end
         end
@@ -193,19 +194,22 @@ node['gluster']['server']['volumes'].each do |volume_name, volume_values|
         # Gluster still requires cli confirmation even if you use force for some odd reason.
         execute "echo y | gluster volume create #{volume_name} #{options}" do
           action :run
+          notifies :run, "execute[gluster volume start #{volume_name}]", :immediately
           not_if options.empty?
         end
       else
-        execute "gluster volume create #{volume_name} #{options}" do
+        execute "gluster volume create #{volume_name}" do
+          command "gluster volume create #{volume_name} #{options}"
           action :run
           not_if options.empty?
+          notifies :run, "execute[gluster volume start #{volume_name}]", :immediately
         end
       end
     end
 
     # Start the volume
     execute "gluster volume start #{volume_name}" do
-      action :run
+      action :nothing
       not_if { `gluster volume info #{volume_name} | grep Status`.include? 'Started' }
     end
 

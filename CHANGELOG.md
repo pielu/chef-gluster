@@ -1,11 +1,14 @@
 # gluster cookbook CHANGELOG
-## v4.0.5 (2015-12-21)
+## 4.0.6 (2016-01-25)
 - small cleanup, again
 
-## v4.0.4 (2015-12-18)
+## 4.0.5 (2015-12-21)
+- small cleanup, again
+
+## 4.0.4 (2015-12-18)
 - small cleanup of debug stuff and added node.save to release first node from the wait loop asap
 
-## v4.0.3 (2015-12-17)
+## 4.0.3 (2015-12-17)
 - master gluster to wait for others to finish
 
 ## v4.0.2 (2015-10-21)
